@@ -58,7 +58,7 @@ For a monorepo setup, it's best to deploy **Frontend** and **Backend** as two se
 - **Framework Preset**: Vite
 - **Root Directory**: `frontend`
 - **Environment Variables**:
-  - `VITE_API_BASE_URL`: *The URL of your deployed backend* (e.g. `https://your-api.vercel.app/api`)
+  - `VITE_API_BASE_URL`: `https://bday-bash-backend.vercel.app/api`
 
 ---
 Made with magic by BdayBash ✨
