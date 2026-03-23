@@ -1,13 +1,44 @@
 import mongoose from 'mongoose';
 
+/**
+ * Global is used here to maintain a cached connection across hot reloads in development
+ * and function invocations in serverless environments like Vercel.
+ */
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
-    console.log(`✅ MongoDB connected: ${conn.connection.host}`);
-  } catch (err) {
-    console.error('❌ MongoDB connection error:', err.message);
-    console.error('⚠️  Server is running but DB is unavailable. Fix your Atlas IP whitelist and save a file to trigger restart.');
+  if (cached.conn) {
+    return cached.conn;
   }
+
+  if (!process.env.MONGO_URI) {
+    throw new Error('❌ MONGO_URI is missing in environment variables');
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false, // Disable buffering so we get immediate errors if connection fails
+    };
+
+    cached.promise = mongoose.connect(process.env.MONGO_URI, opts).then((mongoose) => {
+      console.log('✅ MongoDB connected');
+      return mongoose;
+    });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    console.error('❌ MongoDB connection error:', e.message);
+    throw e;
+  }
+
+  return cached.conn;
 };
 
 export default connectDB;
