@@ -1,13 +1,28 @@
 import { customAlphabet } from 'nanoid';
 import Wish from '../models/Wish.js';
 import OpenAI from 'openai';
+import { cloudinary } from '../config/cloudinary.js';
 
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
+
+// GET /api/wish/signature
+export const getSignature = (req, res) => {
+  try {
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const signature = cloudinary.utils.api_sign_request(
+      { timestamp, folder: 'bdaybash' },
+      process.env.CLOUDINARY_API_SECRET
+    );
+    res.json({ signature, timestamp, cloudName: process.env.CLOUDINARY_CLOUD_NAME, apiKey: process.env.CLOUDINARY_API_KEY });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to generate signature' });
+  }
+};
 
 // POST /api/wish/create
 export const createWish = async (req, res) => {
   try {
-    const { receiverName, senderName, message, tone } = req.body;
+    const { receiverName, senderName, message, tone, images, musicUrl } = req.body;
 
     if (!receiverName || !senderName || !message) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -19,14 +34,6 @@ export const createWish = async (req, res) => {
       slug = nanoid();
       exists = await Wish.findOne({ slug });
     }
-
-    const images = (req.files?.images || []).map((file) => ({
-      url: file.path,
-      publicId: file.filename,
-    }));
-
-    // Get music URL if uploaded (CloudinaryStorage handles the upload automatically)
-    const musicUrl = req.files?.music?.[0]?.path || null;
 
     const wish = await Wish.create({
       slug,
@@ -41,7 +48,7 @@ export const createWish = async (req, res) => {
     res.status(201).json({ slug: wish.slug, id: wish._id });
   } catch (err) {
     console.error('createWish error:', err);
-    res.status(500).json({ error: String(err.message || 'Server error while creating wish') });
+    res.status(500).json({ error: String(err.message || 'Server error') });
   }
 };
 

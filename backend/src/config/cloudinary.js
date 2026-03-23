@@ -23,7 +23,7 @@ const storage = new CloudinaryStorage({
   },
 });
 
-export const upload = multer({ 
+export const upload = multer({
   storage,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit for local dev

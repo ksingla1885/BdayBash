@@ -57,35 +57,59 @@ const CreateWish = () => {
     }
   };
 
+  const uploadToCloudinary = async (file, resourceType = 'image') => {
+    // 1. Get Signature from backend
+    const { data: sig } = await api.get('/wish/signature');
+    
+    // 2. Upload to Cloudinary
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', sig.apiKey);
+    formData.append('timestamp', sig.timestamp);
+    formData.append('signature', sig.signature);
+    formData.append('folder', 'bdaybash');
+
+    const res = await axios.post(
+      `https://api.cloudinary.com/v1_1/${sig.cloudName}/${resourceType}/upload`,
+      formData
+    );
+
+    return {
+      url: res.data.secure_url,
+      publicId: res.data.public_id
+    };
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Check total size to prevent Vercel 4.5MB limit error
-      const totalSize = images.reduce((sum, f) => sum + f.size, 0) + (music?.size || 0);
-      if (totalSize > 4.5 * 1024 * 1024) {
-        alert("Files are too large. Total size must be under 4.5MB for the free hosting. Please use smaller images or no music.");
-        setLoading(false);
-        return;
+      // 1. Upload Images
+      const uploadedImages = [];
+      for (const img of images) {
+        const result = await uploadToCloudinary(img, 'image');
+        uploadedImages.push(result);
       }
 
-      const data = new FormData();
-      data.append('receiverName', formData.receiverName);
-      data.append('senderName', formData.senderName);
-      data.append('message', formData.message);
-      data.append('tone', formData.tone);
-      images.forEach((file) => data.append('images', file));
-      if (music) data.append('music', music);
+      // 2. Upload Music if exists
+      let musicUrl = null;
+      if (music) {
+        const result = await uploadToCloudinary(music, 'video'); // Cloudinary uses video for audio
+        musicUrl = result.url;
+      }
 
-      const response = await api.post('/wish/create', data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      // 3. Create Wish on Backend
+      const response = await api.post('/wish/create', {
+        ...formData,
+        images: uploadedImages,
+        musicUrl
       });
 
       navigate(`/wish/${response.data.slug}/share`);
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.error || err.message || "Something went wrong!");
+      alert(err.response?.data?.error || err.message || "Upload failed. Try smaller files or check connection.");
     } finally {
       setLoading(false);
     }
@@ -187,7 +211,23 @@ const CreateWish = () => {
                   bg-white/50 border border-gray-200 rounded-xl"
               />
               {images.length > 0 && (
-                <p className="mt-2 text-sm text-gray-500 text-right">{images.length} files selected</p>
+                <div className="mt-4 grid grid-cols-4 gap-2">
+                  {images.map((img, idx) => (
+                    <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-gray-100 shadow-sm relative group">
+                      <img 
+                        src={URL.createObjectURL(img)} 
+                        alt="preview" 
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-[10px] font-bold">#{idx + 1}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="aspect-square rounded-lg bg-gray-50 border border-dashed border-gray-200 flex items-center justify-center">
+                    <span className="text-gray-400 text-xs font-bold">{images.length}px</span>
+                  </div>
+                </div>
               )}
             </div>
 
