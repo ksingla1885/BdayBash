@@ -62,6 +62,14 @@ const CreateWish = () => {
     setLoading(true);
 
     try {
+      // Check total size to prevent Vercel 4.5MB limit error
+      const totalSize = images.reduce((sum, f) => sum + f.size, 0) + (music?.size || 0);
+      if (totalSize > 4.5 * 1024 * 1024) {
+        alert("Files are too large. Total size must be under 4.5MB for the free hosting. Please use smaller images or no music.");
+        setLoading(false);
+        return;
+      }
+
       const data = new FormData();
       data.append('receiverName', formData.receiverName);
       data.append('senderName', formData.senderName);
