@@ -26,8 +26,22 @@ const CreateWish = () => {
 
   const handleImageChange = (e) => {
     if (e.target.files) {
-      setImages(Array.from(e.target.files));
+      const selectedFiles = Array.from(e.target.files);
+      const totalImages = images.length + selectedFiles.length;
+      
+      if (totalImages > 6) {
+        alert("You can only upload a maximum of 6 images. Please select fewer images.");
+        return;
+      }
+      
+      setImages(prev => [...prev, ...selectedFiles]);
+      // Reset input value to allow selecting same files again if removed
+      e.target.value = '';
     }
+  };
+
+  const removeImage = (index) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleMusicChange = (e) => {
@@ -196,37 +210,55 @@ const CreateWish = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Memories (Images)</label>
+              <div className="flex justify-between items-end mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Memories (Images) <span className="text-gray-400 font-normal">({images.length}/6)</span>
+                </label>
+                {images.length >= 6 && (
+                   <span className="text-[10px] text-pink-500 font-bold uppercase tracking-widest">Max Reach! 🛑</span>
+                )}
+              </div>
               <input
                 type="file"
                 multiple
                 accept="image/*"
                 onChange={handleImageChange}
+                disabled={images.length >= 6}
                 className="mt-1 block w-full text-sm text-gray-500
                   file:mr-4 file:py-3 file:px-4
                   file:rounded-xl file:border-0
                   file:text-sm file:font-semibold
                   file:bg-indigo-50 file:text-indigo-600
                   hover:file:bg-indigo-100 transition-all
-                  bg-white/50 border border-gray-200 rounded-xl"
+                  bg-white/50 border border-gray-200 rounded-xl
+                  disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {images.length > 0 && (
-                <div className="mt-4 grid grid-cols-4 gap-2">
+                <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {images.map((img, idx) => (
-                    <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-gray-100 shadow-sm relative group">
+                    <div key={idx} className="aspect-square rounded-2xl overflow-hidden border-2 border-white shadow-md relative group">
                       <img 
                         src={URL.createObjectURL(img)} 
                         alt="preview" 
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="text-white text-[10px] font-bold">#{idx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeImage(idx)}
+                          className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-red-500/80 transition-colors"
+                        >
+                          ✕
+                        </button>
                       </div>
                     </div>
                   ))}
-                  <div className="aspect-square rounded-lg bg-gray-50 border border-dashed border-gray-200 flex items-center justify-center">
-                    <span className="text-gray-400 text-xs font-bold">{images.length}px</span>
-                  </div>
+                  {images.length < 6 && (
+                     <div className="aspect-square rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400">
+                        <span className="text-xl font-bold">+</span>
+                        <span className="text-[8px] font-bold uppercase">{6 - images.length} left</span>
+                     </div>
+                  )}
                 </div>
               )}
             </div>

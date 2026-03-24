@@ -28,6 +28,10 @@ export const createWish = async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    if (images && images.length > 6) {
+      return res.status(400).json({ error: 'Maximum 6 images allowed' });
+    }
+
     let slug;
     let exists = true;
     while (exists) {
@@ -68,29 +72,32 @@ export const generateMessage = async (req, res) => {
   try {
     const { receiverName, senderName, tone } = req.body;
 
-    const apiKey = process.env.GROQ_API_KEY || (process.env.OPENAI_API_KEY !== 'your_openai_api_key' ? process.env.OPENAI_API_KEY : null);
+    // Prioritize Groq if present, otherwise check for valid OpenAI key
+    const groqKey = process.env.GROQ_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
+    
+    const apiKey = groqKey || (openaiKey && openaiKey !== 'your_openai_api_key' ? openaiKey : null);
     
     if (!apiKey) {
-      // Fallback messages if no AI key
+      console.warn("No AI API key found. Using fallback messages.");
       const fallbacks = {
-        emotional: `Dear ${receiverName}, on this special day I want you to know that having you in my life is the greatest gift I've ever received. Every moment with you is a treasure I hold close to my heart. May this birthday bring you all the joy, love, and happiness you so deeply deserve. With all my love, ${senderName} 💖`,
-        funny: `Hey ${receiverName}! Congratulations — you've successfully survived another trip around the sun! 🌍 Also, you're not getting older, you're just leveling up in the game of life (with more bugs and less hair). Stay weird, stay wonderful! Happy Birthday from ${senderName} 😂🎂`,
-        savage: `${receiverName}, let's be real — you're getting old. Like, dinosaur old. But hey, at least you're still breathing, which is more than can be said for your youth. Happy Birthday! — ${senderName} 💀🔥`,
+        emotional: `Dearest ${receiverName}, on your special day, I want to express how much you mean to me. You bring so much light and joy into the world just by being you. May your birthday be filled with all the love and happiness you give to others every day. Happy Birthday! Love, ${senderName} ❤️`,
+        funny: `Happy Birthday ${receiverName}! 🎂 You've reached an age where your back goes out more than you do. But hey, at least you're not as old as you'll be next year! Enjoy your day of being the center of attention (and possibly the oldest person in the room). Cheers! — ${senderName} 😂`,
+        savage: `${receiverName}, congratulations on surviving another year of your questionable life choices. 💀 You’re aging like fine milk. Just kidding (mostly). Don't expect a expensive gift, my presence is your present. Happy Birthday, you legend! — ${senderName} 🔥`,
       };
       return res.json({ message: fallbacks[tone] || fallbacks.emotional });
     }
 
-    // Determine if we're using Groq or OpenAI
-    const isGroq = process.env.GROQ_API_KEY ? true : false;
+    const isGroq = !!groqKey;
     const client = new OpenAI({
       apiKey: apiKey,
       ...(isGroq ? { baseURL: "https://api.groq.com/openai/v1" } : {}),
     });
 
     const toneInstructions = {
-      emotional: 'Write a heartfelt, emotional, and touching birthday message.',
-      funny: 'Write a hilarious, funny, and witty birthday message with jokes and emojis.',
-      savage: 'Write a savage, roasting, brutally funny birthday message that still feels affectionate.',
+      emotional: 'heartfelt, poetic, deep, and touching. Focus on memories and the beauty of their soul.',
+      funny: 'hilarious, witty, relatable, and full of personality. Use clever puns and lighthearted jokes.',
+      savage: 'brutally funny, roasts, "lovingly" mean, and total chaos. Use internet slang and savage wit.',
     };
 
     const completion = await client.chat.completions.create({
@@ -98,19 +105,29 @@ export const generateMessage = async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: `You are a professional birthday message writer. ${toneInstructions[tone] || toneInstructions.emotional} Keep it under 150 words. Use the receiver's name (${receiverName}) and sign off from ${senderName}.`,
+          content: `You are a creative birthday message writer. 
+          STRICT RULES:
+          1. Tone: ${toneInstructions[tone] || toneInstructions.emotional}
+          2. Receiver: ${receiverName}
+          3. Sender: ${senderName}
+          4. Length: 50-120 words.
+          5. Variety: BE UNIQUE. Do not use generic clichés like "another trip around the sun" unless you add a twist. 
+          6. Style: Use a modern, engaging style with appropriate emojis.
+          7. Output: JUST the message. No "Here is your message:", no quotes.`,
         },
         {
           role: 'user',
-          content: `Write a ${tone} birthday message from ${senderName} to ${receiverName}.`,
+          content: `Write a completely fresh and unique ${tone} birthday message from ${senderName} to ${receiverName}. Use unique metaphors related to ${tone}.`,
         },
       ],
+      temperature: 0.85, // Higher temperature for more variety
+      max_tokens: 300,
     });
 
-    const message = completion.choices[0].message.content;
+    const message = completion.choices[0].message.content.trim().replace(/^"|"$/g, '');
     res.json({ message });
   } catch (err) {
-    console.error('generateMessage error:', err);
-    res.status(500).json({ error: 'Failed to generate message' });
+    console.error('generateMessage error details:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to generate a fresh message. AI might be busy.' });
   }
 };
