@@ -102,4 +102,4 @@ BdayBash/
 BdayBash uses a **Glassmorphic Dark Theme** with vibrant gradients (Pink ↔ Indigo) to create a premium, high-end feel. The focus is on **Micro-interactions**—every button click and transition is animated to keep the user engaged.
 
 ---
-Made with ❤️ by Antigravity
+Made with ❤️ by ketan
