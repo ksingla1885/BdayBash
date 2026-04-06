@@ -14,6 +14,7 @@ const BirthdayPage = () => {
   const { slug } = useParams();
   const [wish, setWish] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [opened, setOpened] = useState(false);
   const [muted, setMuted] = useState(false);
   const audioRef = useRef(null);
@@ -25,6 +26,7 @@ const BirthdayPage = () => {
         setWish(data);
       } catch (err) {
         console.error(err);
+        setError(err.response?.data?.error || err.message || 'Something went wrong');
       } finally {
         setLoading(false);
       }
@@ -60,11 +62,18 @@ const BirthdayPage = () => {
     );
   }
 
-  if (!wish) {
+  if (error || !wish) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#070b14] text-white text-xl font-bold flex-col gap-4">
+      <div className="min-h-screen flex items-center justify-center bg-[#070b14] text-white text-xl font-bold flex-col gap-4 p-6 text-center">
         <span className="text-6xl">😿</span>
-        Oops! Wish not found.
+        <h2 className="text-2xl font-bold text-pink-400">Oops! Something went wrong</h2>
+        <p className="text-slate-400 max-w-md">{error || 'Wish not found. The link might be broken.'}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-4 px-6 py-2 bg-pink-500 rounded-full text-sm font-bold hover:bg-pink-600 transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     );
   }

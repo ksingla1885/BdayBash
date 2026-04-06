@@ -40,5 +40,5 @@ const wishSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Wish = mongoose.model('Wish', wishSchema);
+const Wish = mongoose.models.Wish || mongoose.model('Wish', wishSchema);
 export default Wish;

@@ -4,24 +4,40 @@ import cors from 'cors';
 import connectDB from './config/db.js';
 import wishRoutes from './routes/wishRoutes.js';
 
-connectDB();
+// Do not connect at top level, use middleware instead
+// connectDB();
 
 const app = express();
+
+const extractOrigin = (url) => {
+  if (!url) return null;
+  try {
+    const { protocol, host } = new URL(url);
+    return `${protocol}//${host}`;
+  } catch {
+    return url.replace(/\/$/, ""); // Fallback to stripping trailing slash
+  }
+};
 
 const allowedOrigins = [
   'http://localhost:5173',
   'https://hbd-bash.vercel.app',
-  'https://bday-bash.now.sh', // common vercel fallback
-  process.env.CLIENT_URL,
+  'https://bday-bash.vercel.app', // added commonly used name
+  'https://bday-bash.now.sh',
+  extractOrigin(process.env.CLIENT_URL),
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+
+    // Check for exact matches
+    const isAllowed = allowedOrigins.some(ao => ao && (origin === ao || origin === ao.replace(/\/$/, '')));
+
+    if (isAllowed || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
+      console.warn(`CORS blocked for origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -29,6 +45,17 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Database connection middleware
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('Database connection failed in middleware:', err);
+    res.status(500).json({ error: 'Database connection failed. Please check your MONGO_URI.' });
+  }
+});
 
 // Routes
 app.use('/api/wish', wishRoutes);
