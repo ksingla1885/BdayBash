@@ -1,11 +1,28 @@
 import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
+
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
 
 const ShareWish = () => {
   const { slug } = useParams();
   const [copied, setCopied] = useState(false);
+  const [reactions, setReactions] = useState([]);
   const shareUrl = `${window.location.origin}/wish/${slug}`;
+
+  useEffect(() => {
+    socket.emit('join-wish', slug);
+    socket.on('new-reaction', (emoji) => {
+      const id = Date.now();
+      setReactions(prev => [...prev, { id, emoji }]);
+      setTimeout(() => {
+        setReactions(prev => prev.filter(r => r.id !== id));
+      }, 5000);
+    });
+    return () => socket.off('new-reaction');
+  }, [slug]);
+
 
   const handleCopy = () => {
     navigator.clipboard.writeText(shareUrl);
@@ -75,6 +92,29 @@ const ShareWish = () => {
           >
             Preview Surprise 👀
           </Link>
+
+          {/* Live Reaction Monitor */}
+          <div className="mt-6 p-4 bg-white/5 rounded-2xl border border-white/5 relative overflow-hidden min-h-[60px]">
+             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Live Reactions</p>
+             <div className="flex justify-center gap-2 flex-wrap">
+                <AnimatePresence>
+                  {reactions.length === 0 && (
+                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 0.3 }} className="text-[10px] text-slate-400 italic">Waiting for recipient to view...</motion.span>
+                  )}
+                  {reactions.map(r => (
+                    <motion.span
+                      key={r.id}
+                      initial={{ scale: 0, y: 10 }}
+                      animate={{ scale: 1.5, y: 0 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      className="text-2xl"
+                    >
+                      {r.emoji}
+                    </motion.span>
+                  ))}
+                </AnimatePresence>
+             </div>
+          </div>
           
           <Link
             to="/"
@@ -83,6 +123,7 @@ const ShareWish = () => {
             + Create Another One
           </Link>
         </div>
+
       </motion.div>
 
       {/* Footer Text */}

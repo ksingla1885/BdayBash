@@ -13,6 +13,7 @@ const CreateWish = () => {
     senderName: '',
     message: '',
     tone: 'emotional',
+    keywords: '',
   });
   const [images, setImages] = useState([]);
   const [music, setMusic] = useState(null);
@@ -51,29 +52,33 @@ const CreateWish = () => {
   };
 
   const handleGenerateMessage = async () => {
-    if (!formData.receiverName || !formData.senderName) {
-      alert("Please enter both receiver and sender names first!");
+    if (!formData.receiverName) {
+      alert("Please enter the receiver's name first!");
       return;
     }
     setGenerating(true);
     try {
-      const { data } = await api.post('/wish/generate-message', {
+      console.log('Sending request to AI with baseURL:', api.defaults.baseURL);
+      const { data } = await api.post('ai/generate-wish', {
+
         receiverName: formData.receiverName,
         senderName: formData.senderName,
         tone: formData.tone,
+        keywords: formData.keywords,
       });
-      setFormData(prev => ({ ...prev, message: data.message }));
+      setFormData(prev => ({ ...prev, message: data.wish }));
     } catch (err) {
       console.error(err);
-      alert("Failed to generate message. Please try writing manually.");
+      alert("Failed to generate wish. Please try writing manually.");
     } finally {
       setGenerating(false);
     }
   };
 
+
   const uploadToCloudinary = async (file, resourceType = 'image') => {
     // 1. Get Signature from backend
-    const { data: sig } = await api.get('/wish/signature');
+    const { data: sig } = await api.get('wish/signature');
     
     // 2. Upload to Cloudinary
     const formData = new FormData();
@@ -114,7 +119,7 @@ const CreateWish = () => {
       }
 
       // 3. Create Wish on Backend
-      const response = await api.post('/wish/create', {
+      const response = await api.post('wish/create', {
         ...formData,
         images: uploadedImages,
         musicUrl
@@ -186,18 +191,33 @@ const CreateWish = () => {
               </select>
             </div>
 
-            <div>
-              <div className="flex justify-between items-end mb-1">
-                <label className="block text-sm font-medium text-gray-700">Message</label>
+            <div className="bg-gradient-to-r from-pink-50 to-indigo-50 p-4 rounded-2xl border border-pink-100 space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="block text-sm font-bold text-gray-700">AI Wish Assistant ✨</label>
                 <button
                   type="button"
                   onClick={handleGenerateMessage}
                   disabled={generating}
-                  className="text-xs text-pink-500 hover:text-pink-600 font-medium px-3 py-1 bg-pink-50 rounded-full transition-colors"
+                  className="text-xs text-white hover:opacity-90 font-bold px-4 py-2 bg-gradient-to-r from-pink-500 to-indigo-500 rounded-full transition-all shadow-md disabled:opacity-50"
                 >
-                  {generating ? '✍️ Generating...' : '✨ Use AI Magic'}
+                  {generating ? '✍️ Writing...' : 'Generate Wish'}
                 </button>
               </div>
+              <div>
+                <input
+                  type="text"
+                  name="keywords"
+                  value={formData.keywords}
+                  onChange={handleInputChange}
+                  className="block w-full px-3 py-2 bg-white/80 border border-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all"
+                  placeholder="Inside jokes, memories, or specific traits..."
+                />
+                <p className="mt-1 text-[10px] text-gray-400">Add some keywords to make it personal!</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Final Message</label>
               <textarea
                 name="message"
                 required
@@ -205,9 +225,10 @@ const CreateWish = () => {
                 value={formData.message}
                 onChange={handleInputChange}
                 className="block w-full px-4 py-3 bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all resize-none"
-                placeholder="Write your wishes here..."
+                placeholder="Write your wishes here or use AI magic above..."
               />
             </div>
+
 
             <div>
               <div className="flex justify-between items-end mb-1">
