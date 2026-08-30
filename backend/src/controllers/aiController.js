@@ -1,11 +1,10 @@
-import OpenAI from 'openai';
+import { OpenRouter } from '@openrouter/sdk';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const openai = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: 'https://api.groq.com/openai/v1',
+const openrouter = new OpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 export const generateWish = async (req, res) => {
@@ -29,15 +28,21 @@ export const generateWish = async (req, res) => {
   `;
 
   try {
-    const completion = await openai.chat.completions.create({
-      messages: [{ role: 'user', content: prompt }],
-      model: 'llama-3.3-70b-versatile',
+    const completion = await openrouter.chat.send({
+      chatRequest: {
+        model: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free',
+        messages: [{ role: 'user', content: prompt }],
+      }
     });
 
-    const wish = completion.choices[0].message.content.trim();
+    const wish = completion.choices[0]?.message?.content?.trim();
+    if (!wish) {
+      throw new Error('Received empty response from OpenRouter');
+    }
     res.json({ wish });
   } catch (error) {
     console.error('AI Generation Error:', error);
     res.status(500).json({ error: 'Failed to generate wish. Please try again.' });
   }
 };
+

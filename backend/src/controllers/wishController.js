@@ -1,6 +1,6 @@
 import { customAlphabet } from 'nanoid';
 import Wish from '../models/Wish.js';
-import OpenAI from 'openai';
+import { OpenRouter } from '@openrouter/sdk';
 import { cloudinary } from '../config/cloudinary.js';
 
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
@@ -72,14 +72,10 @@ export const generateMessage = async (req, res) => {
   try {
     const { receiverName, senderName, tone } = req.body;
 
-    // Prioritize Groq if present, otherwise check for valid OpenAI key
-    const groqKey = process.env.GROQ_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
     
-    const apiKey = groqKey || (openaiKey && openaiKey !== 'your_openai_api_key' ? openaiKey : null);
-    
-    if (!apiKey) {
-      console.warn("No AI API key found. Using fallback messages.");
+    if (!openrouterKey) {
+      console.warn("No OpenRouter API key found. Using fallback messages.");
       const fallbacks = {
         emotional: `Dearest ${receiverName}, on your special day, I want to express how much you mean to me. You bring so much light and joy into the world just by being you. May your birthday be filled with all the love and happiness you give to others every day. Happy Birthday! Love, ${senderName} ❤️`,
         funny: `Happy Birthday ${receiverName}! 🎂 You've reached an age where your back goes out more than you do. But hey, at least you're not as old as you'll be next year! Enjoy your day of being the center of attention (and possibly the oldest person in the room). Cheers! — ${senderName} 😂`,
@@ -88,10 +84,8 @@ export const generateMessage = async (req, res) => {
       return res.json({ message: fallbacks[tone] || fallbacks.emotional });
     }
 
-    const isGroq = !!groqKey;
-    const client = new OpenAI({
-      apiKey: apiKey,
-      ...(isGroq ? { baseURL: "https://api.groq.com/openai/v1" } : {}),
+    const openrouter = new OpenRouter({
+      apiKey: openrouterKey,
     });
 
     const toneInstructions = {
@@ -100,34 +94,39 @@ export const generateMessage = async (req, res) => {
       savage: 'brutally funny, roasts, "lovingly" mean, and total chaos. Use internet slang and savage wit.',
     };
 
-    const completion = await client.chat.completions.create({
-      model: isGroq ? 'llama-3.3-70b-versatile' : 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a creative birthday message writer. 
-          STRICT RULES:
-          1. Tone: ${toneInstructions[tone] || toneInstructions.emotional}
-          2. Receiver: ${receiverName}
-          3. Sender: ${senderName}
-          4. Length: 50-120 words.
-          5. Variety: BE UNIQUE. Do not use generic clichés like "another trip around the sun" unless you add a twist. 
-          6. Style: Use a modern, engaging style with appropriate emojis.
-          7. Output: JUST the message. No "Here is your message:", no quotes.`,
-        },
-        {
-          role: 'user',
-          content: `Write a completely fresh and unique ${tone} birthday message from ${senderName} to ${receiverName}. Use unique metaphors related to ${tone}.`,
-        },
-      ],
-      temperature: 0.85, // Higher temperature for more variety
-      max_tokens: 300,
+    const completion = await openrouter.chat.send({
+      chatRequest: {
+        model: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a creative birthday message writer. 
+            STRICT RULES:
+            1. Tone: ${toneInstructions[tone] || toneInstructions.emotional}
+            2. Receiver: ${receiverName}
+            3. Sender: ${senderName}
+            4. Length: 50-120 words.
+            5. Variety: BE UNIQUE. Do not use generic clichés like "another trip around the sun" unless you add a twist. 
+            6. Style: Use a modern, engaging style with appropriate emojis.
+            7. Output: JUST the message. No "Here is your message:", no quotes.`,
+          },
+          {
+            role: 'user',
+            content: `Write a completely fresh and unique ${tone} birthday message from ${senderName} to ${receiverName}. Use unique metaphors related to ${tone}.`,
+          },
+        ],
+        temperature: 0.85,
+        max_tokens: 300,
+      }
     });
 
-    const message = completion.choices[0].message.content.trim().replace(/^"|"$/g, '');
+    const message = completion.choices[0]?.message?.content?.trim()?.replace(/^"|"$/g, '');
+    if (!message) {
+      throw new Error('Received empty response from OpenRouter');
+    }
     res.json({ message });
   } catch (err) {
-    console.error('generateMessage error details:', err.response?.data || err.message);
+    console.error('generateMessage error details:', err.message);
     res.status(500).json({ error: 'Failed to generate a fresh message. AI might be busy.' });
   }
 };

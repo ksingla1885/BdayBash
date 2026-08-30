@@ -32,7 +32,7 @@ BdayBash is a full-stack web application designed to create unforgettable, emoti
 - **Node.js & Express**: Robust and scalable API architecture.
 - **MongoDB & Mongoose**: Flexible document storage for wishes.
 - **Multer & Cloudinary**: automated media management and CDN delivery.
-- **OpenAI/Groq API**: Intelligence for dynamic message generation.
+- **OpenRouter SDK**: Intelligence for dynamic message generation.
 
 ## 🚀 Getting Started
 
@@ -40,7 +40,7 @@ BdayBash is a full-stack web application designed to create unforgettable, emoti
 - Node.js (v18+)
 - MongoDB Atlas account
 - Cloudinary account
-- OpenAI or Groq API key
+- OpenRouter API key
 
 ### 1. Project Setup
 ```bash
@@ -56,8 +56,8 @@ MONGO_URI=your_mongodb_uri
 CLOUDINARY_CLOUD_NAME=your_name
 CLOUDINARY_API_KEY=your_key
 CLOUDINARY_API_SECRET=your_secret
-OPENAI_API_KEY=your_openai_key
-GROQ_API_KEY=your_groq_key # Optional fallback
+OPENROUTER_API_KEY=your_openrouter_key
+OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free # Optional fallback model
 CLIENT_URL=http://localhost:5173
 ```
 Run the server:
